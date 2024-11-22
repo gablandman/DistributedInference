@@ -8,9 +8,15 @@ shard_full = Shard("llama", 0, 31, 32)
 shard1 = Shard("llama", 0, 12, 32)
 shard2 = Shard("llama", 13, 31, 32)
 
-full_model_shard, full_tokenizer = load_shard("mlx-community/Meta-Llama-3-8B-Instruct-4bit", shard=shard_full)
-model_shard1, tokenizer1 = load_shard("mlx-community/Meta-Llama-3-8B-Instruct-4bit", shard=shard1)
-model_shard2, tokenizer2 = load_shard("mlx-community/Meta-Llama-3-8B-Instruct-4bit", shard=shard2)
+full_model_shard, full_tokenizer = load_shard(
+    "mlx-community/Meta-Llama-3-8B-Instruct-4bit", shard=shard_full
+)
+model_shard1, tokenizer1 = load_shard(
+    "mlx-community/Meta-Llama-3-8B-Instruct-4bit", shard=shard1
+)
+model_shard2, tokenizer2 = load_shard(
+    "mlx-community/Meta-Llama-3-8B-Instruct-4bit", shard=shard2
+)
 
 full = StatefulModel(shard_full, full_model_shard)
 m1 = StatefulModel(shard1, model_shard1)
@@ -23,18 +29,20 @@ max_tokens = 50
 resp = prompt_tokens
 full_generated_tokens = []
 for _ in range(max_tokens):
-  resp = full.step(resp)
-  full_generated_tokens.append(resp.item())
+    resp = full.step(resp)
+    full_generated_tokens.append(resp.item())
 
 print("full response: ", full_tokenizer.decode(full_generated_tokens))
 
 sharded_generated_tokens = []
 sharded_resp = prompt_tokens
 for _ in range(max_tokens):
-  resp1 = m1.step(sharded_resp)
-  sharded_resp = m2.step(resp1)
-  sharded_generated_tokens.append(sharded_resp.item())
+    resp1 = m1.step(sharded_resp)
+    sharded_resp = m2.step(resp1)
+    sharded_generated_tokens.append(sharded_resp.item())
 
 print("sharded response: ", tokenizer1.decode(sharded_generated_tokens))
 
-assert tokenizer1.decode(full_generated_tokens) == tokenizer1.decode(sharded_generated_tokens)
+assert tokenizer1.decode(full_generated_tokens) == tokenizer1.decode(
+    sharded_generated_tokens
+)
