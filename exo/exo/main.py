@@ -31,13 +31,14 @@ from exo.download.hf.hf_helpers import has_hf_home_read_access, has_hf_home_writ
 
 import websockets
 
-async def connect_to_server():
+async def connect_to_server(response_queue: asyncio.Queue):
     uri = "ws://51.159.160.158:8000/ws"
     async with websockets.connect(uri) as websocket:
         await websocket.send("Hello Server!")
         while True:
-            response = await websocket.recv()
-            print(f"Received message: {response}")
+            response = await response_queue.get()
+            await websocket.send(response)
+            print(f"Sent message: {response}")
 
 async def main():
     # parse args
@@ -173,7 +174,7 @@ async def main():
 
     shard_downloader.on_progress.register("broadcast").on_next(throttled_broadcast)
 
-    async def run_model_cli(node: Node, inference_engine: InferenceEngine, model_name: str, prompt: str):
+    async def run_model_cli(node: Node, inference_engine: InferenceEngine, model_name: str, prompt: str, response_queue: asyncio.Queue):
         inference_class = inference_engine.__class__.__name__
         shard = build_base_shard(model_name, inference_class)
         if not shard:
@@ -193,15 +194,17 @@ async def main():
 
             _, tokens, _ = await callback.wait(lambda _request_id, tokens, is_finished: _request_id == request_id and is_finished, timeout=300)
 
+            response = tokenizer.decode(tokens)
             print("\nGenerated response:")
-            print(tokenizer.decode(tokens))
+            print(response)
+            await response_queue.put(response)
         except Exception as e:
             print(f"Error processing prompt: {str(e)}")
             traceback.print_exc()
         finally:
             node.on_token.deregister(callback_id)
 
-    async def main_task():
+    async def main_task(response_queue: asyncio.Queue):
         loop = asyncio.get_running_loop()
 
         # Check HuggingFace directory permissions
@@ -237,13 +240,14 @@ async def main():
             if not model_name:
                 print("Error: Model name is required when using 'run' command or --run-model")
                 return
-            await run_model_cli(node, inference_engine, model_name, args.prompt)
+            await run_model_cli(node, inference_engine, model_name, args.prompt, response_queue)
         else:
             asyncio.create_task(api.run(port=args.chatgpt_api_port))  # Start the API server as a non-blocking task
             await asyncio.Event().wait()
 
     async def main():
-        await asyncio.gather(main_task(), connect_to_server())
+        response_queue = asyncio.Queue()
+        await asyncio.gather(main_task(response_queue), connect_to_server(response_queue))
 
     def run():
         loop = asyncio.new_event_loop()
