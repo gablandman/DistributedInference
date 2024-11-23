@@ -111,7 +111,6 @@ class UDPDiscovery(Discovery):
                 "device_capabilities": self.device_capabilities.to_dict(),
                 "priority": 1,  # Placeholder for prioritization logic
                 "public_ip": public_ip,
-                "target_id": target_id,
             })
 
             if DEBUG_DISCOVERY >= 3:
@@ -122,7 +121,7 @@ class UDPDiscovery(Discovery):
                 # Create a datagram endpoint and send the message to the target
                 transport, _ = await asyncio.get_event_loop().create_datagram_endpoint(
                     lambda: BroadcastProtocol(message,self.broadcast_port),
-                    local_addr=("0.0.0.0", 0),  # Bind to all interfaces (valid local IP)
+                    local_addr=("0.0.0.0", self.broadcast_port),  # Bind to all interfaces (valid local IP)
                     remote_addr=(target_ip, target_port),  # Target's public IP and port
                     family=socket.AF_INET
                 )
