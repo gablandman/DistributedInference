@@ -87,8 +87,9 @@ if DEBUG >= 0:
   for chatgpt_api_endpoint in chatgpt_api_endpoints:
     print(f" - {terminal_link(chatgpt_api_endpoint)}")
 
-target_ids = [{"ip":"84.14.112.188", "port":5678}] #for Malo
-#target_ids = [{"ip":"77.136.67.102", "port":5678}] # for Gary
+#target_ids = [{"ip":"84.14.112.188", "port":5678}] # Gary
+#target_ids = [{"ip":"77.136.67.102", "port":5678}] #  Malo
+target_ids = [{"ip":"84.14.112.188", "port":5678}] # Alan
 
 if args.discovery_module == "udp":
   discovery = UDPDiscovery(

@@ -21,6 +21,7 @@ class ListenProtocol(asyncio.DatagramProtocol):
 
   def connection_made(self, transport):
     self.transport = transport
+    print(transport.get_extra_info("socket"))
 
   def datagram_received(self, data, addr):
     asyncio.create_task(self.on_message(data, addr))
@@ -123,8 +124,8 @@ class UDPDiscovery(Discovery):
                 # Create a datagram endpoint and send the message to the target
                 transport, _ = await asyncio.get_event_loop().create_datagram_endpoint(
                     lambda: UnicastProtocol(message, target_ip, target_port),
-                    remote_addr=(target_ip, target_port),  # Target's public IP and port
-                    family=socket.AF_INET
+                    local_addr=("0.0.0.0", self.broadcast_port),
+                    family=socket.AF_INET  # Bind to the local sending port
                 )
             except Exception as e:
                 print(f"Error sending presence to {target_id} ({target_ip}:{target_port}): {e}")
@@ -146,7 +147,6 @@ class UDPDiscovery(Discovery):
         async with aiohttp.ClientSession() as session:
             async with session.get('https://api.ipify.org?format=json') as response:
                 if response.status == 200:
-                    
                     data = await response.json()
                     print(f"Public IP: {data}")
                     return data["ip"]
