@@ -20,7 +20,7 @@ class ManualDiscovery(Discovery):
 
     if node_id not in self.topology.peers:
       raise ValueError(
-        f"Node ID {node_id} not found in network config file {network_config_path}. Please run with `node_id` set to one of the keys in the config file: {[k for k, _ in self.topology.peers]}"
+        f"Node ID {node_id} not found in network config file {network_config_path}. Please run with `node_id` set to one of the keys in the config file: {[k for k in self.topology.peers]}"
       )
 
     self.listen_task = None

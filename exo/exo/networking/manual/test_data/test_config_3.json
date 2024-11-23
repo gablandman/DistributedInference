@@ -27,6 +27,20 @@
           "int8": 0
         }
       }
+    },
+    "node3": {
+      "address": "0.0.0.0",
+      "port": 50054,
+      "device_capabilities": {
+        "model": "Unknown Model",
+        "chip": "Unknown Chip",
+        "memory": 0,
+        "flops": {
+          "fp32": 0,
+          "fp16": 0,
+          "int8": 0
+        }
+      }
     }
   }
 }

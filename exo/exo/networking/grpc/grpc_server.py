@@ -28,8 +28,11 @@ class GRPCServer(node_service_pb2_grpc.NodeServiceServicer):
     )
     node_service_pb2_grpc.add_NodeServiceServicer_to_server(self, self.server)
     listen_addr = f"{self.host}:{self.port}"
-    self.server.add_insecure_port(listen_addr)
-    await self.server.start()
+    print(f"Starting server on {listen_addr}")
+    res = self.server.add_insecure_port(listen_addr)
+    print(f"Server started, insecure on {res}")
+    res1 = await self.server.start()
+    print(f"Server started, listening on {res1}")
     if DEBUG >= 1: print(f"Server started, listening on {listen_addr}")
 
   async def stop(self) -> None:

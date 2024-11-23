@@ -38,6 +38,8 @@ class GRPCPeerHandle(PeerHandle):
         ('grpc.max_send_message_length', 32*1024*1024)
       ])
       self.stub = node_service_pb2_grpc.NodeServiceStub(self.channel)
+      print( "connected to", self.stub)
+      print( "channel target ", self.channel)
     await self.channel.channel_ready()
 
   async def is_connected(self) -> bool:

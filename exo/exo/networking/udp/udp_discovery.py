@@ -8,6 +8,9 @@ from exo.networking.discovery import Discovery
 from exo.networking.peer_handle import PeerHandle
 from exo.topology.device_capabilities import DeviceCapabilities, device_capabilities, UNKNOWN_DEVICE_CAPABILITIES
 from exo.helpers import DEBUG, DEBUG_DISCOVERY, get_all_ip_addresses
+import aiohttp
+
+DEBUG_DISCOVERY = 2  # Adjust this to control debug verbosity
 
 
 class ListenProtocol(asyncio.DatagramProtocol):
@@ -31,7 +34,7 @@ class BroadcastProtocol(asyncio.DatagramProtocol):
   def connection_made(self, transport):
     sock = transport.get_extra_info("socket")
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-    transport.sendto(self.message.encode("utf-8"), ("<broadcast>", self.broadcast_port))
+    transport.sendto(self.message.encode("utf-8"))
 
 
 class UDPDiscovery(Discovery):
@@ -45,6 +48,7 @@ class UDPDiscovery(Discovery):
     broadcast_interval: int = 1,
     discovery_timeout: int = 30,
     device_capabilities: DeviceCapabilities = UNKNOWN_DEVICE_CAPABILITIES,
+    target_ids: Dict[str, Dict[str, int]] = {},
   ):
     self.node_id = node_id
     self.node_port = node_port
@@ -58,8 +62,9 @@ class UDPDiscovery(Discovery):
     self.broadcast_task = None
     self.listen_task = None
     self.cleanup_task = None
+    self.target_ids = target_ids
 
-  async def start(self):
+  async def start(self,target_ids):
     self.device_capabilities = device_capabilities()
     self.broadcast_task = asyncio.create_task(self.task_broadcast_presence())
     self.listen_task = asyncio.create_task(self.task_listen_for_peers())
@@ -80,41 +85,76 @@ class UDPDiscovery(Discovery):
     return [peer_handle for peer_handle, _, _, _ in self.known_peers.values()]
 
   async def task_broadcast_presence(self):
+    """
+    Sends a discovery message to a given list of target IDs with their corresponding IPs and ports.
+    """
     if DEBUG_DISCOVERY >= 2: print("Starting task_broadcast_presence...")
+    
+    # Retrieve the public IP
+    public_ip = await self.get_public_ip()
+    if not public_ip:
+        print("Failed to retrieve public IP. Stopping broadcast task.")
+        return
+
+    print(f"Public IP: {public_ip}")
 
     while True:
-      # Explicitly broadcasting on all assigned ips since broadcasting on `0.0.0.0` on MacOS does not broadcast over
-      # the Thunderbolt bridge when other connection modalities exist such as WiFi or Ethernet
-      for addr in get_all_ip_addresses():
-        message = json.dumps({
-          "type": "discovery",
-          "node_id": self.node_id,
-          "grpc_port": self.node_port,
-          "device_capabilities": self.device_capabilities.to_dict(),
-          "priority": 1,  # For now, every interface has the same priority. We can make this better by prioriting interfaces based on bandwidth, latency, and jitter e.g. prioritise Thunderbolt over WiFi.
-        })
-        if DEBUG_DISCOVERY >= 3: print(f"Broadcasting presence at ({addr}): {message}")
+        # Prepare the discovery message
+        for target_id, target_info in self.target_ids.items():
+            target_ip = target_info['ip']
+            target_port = target_info['port']
 
-        transport = None
-        try:
-          transport, _ = await asyncio.get_event_loop().create_datagram_endpoint(lambda: BroadcastProtocol(message, self.broadcast_port), local_addr=(addr, 0), family=socket.AF_INET)
-          if DEBUG_DISCOVERY >= 3:
-            print(f"Broadcasting presence at ({addr})")
-        except Exception as e:
-          print(f"Error in broadcast presence ({addr}): {e}")
-        finally:
-          if transport:
+            message = json.dumps({
+                "type": "discovery",
+                "node_id": self.node_id,
+                "grpc_port": self.node_port,
+                "device_capabilities": self.device_capabilities.to_dict(),
+                "priority": 1,  # Placeholder for prioritization logic
+                "public_ip": public_ip,
+                "target_id": target_id,
+            })
+
+            if DEBUG_DISCOVERY >= 3:
+                print(f"Sending message to {target_id} ({target_ip}:{target_port}): {message}")
+
+            transport = None
             try:
-              transport.close()
+                # Create a datagram endpoint and send the message to the target
+                transport, _ = await asyncio.get_event_loop().create_datagram_endpoint(
+                    lambda: BroadcastProtocol(message),
+                    local_addr=(public_ip, self.broadcast_port),  # Use public IP and an ephemeral port
+                    remote_addr=(target_ip, target_port),  # Target's IP and port
+                    family=socket.AF_INET
+                )
             except Exception as e:
-              if DEBUG_DISCOVERY >= 2: print(f"Error closing transport: {e}")
-              if DEBUG_DISCOVERY >= 2: traceback.print_exc()
-      await asyncio.sleep(self.broadcast_interval)
+                print(f"Error sending presence to {target_id} ({target_ip}:{target_port}): {e}")
+                if DEBUG_DISCOVERY >= 2: traceback.print_exc()
+            finally:
+                if transport:
+                    try:
+                        transport.close()
+                    except Exception as e:
+                        if DEBUG_DISCOVERY >= 2:
+                            print(f"Error closing transport for {target_id}: {e}")
+                            traceback.print_exc()
+
+        await asyncio.sleep(self.broadcast_interval)
+
+  async def get_public_ip(self):
+    """Fetches the public IP using an external API."""
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get('https://api.ipify.org?format=json') as response:
+                if response.status == 200:
+                    data = await response.json()
+                    return data["ip"]
+    except Exception as e:
+        if DEBUG_DISCOVERY >= 1: print(f"Error fetching public IP: {e}")
+        return None
 
   async def on_listen_message(self, data, addr):
     if not data:
       return
-
     decoded_data = data.decode("utf-8", errors="ignore")
 
     # Check if the decoded data starts with a valid JSON character

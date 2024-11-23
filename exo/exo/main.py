@@ -36,7 +36,7 @@ parser.add_argument("model_name", nargs="?", help="Model name to run")
 parser.add_argument("--default-model", type=str, default=None, help="Default model")
 parser.add_argument("--node-id", type=str, default=None, help="Node ID")
 parser.add_argument("--node-host", type=str, default="0.0.0.0", help="Node host")
-parser.add_argument("--node-port", type=int, default=None, help="Node port")
+parser.add_argument("--node_port", type=int, default=50053, help="Node port")
 parser.add_argument("--models-seed-dir", type=str, default=None, help="Model seed directory")
 parser.add_argument("--listen-port", type=int, default=5678, help="Listening port for discovery")
 parser.add_argument("--download-quick-check", action="store_true", help="Quick check local path for model shards download")
@@ -94,7 +94,8 @@ if args.discovery_module == "udp":
     args.listen_port,
     args.broadcast_port,
     lambda peer_id, address, device_capabilities: GRPCPeerHandle(peer_id, address, device_capabilities),
-    discovery_timeout=args.discovery_timeout
+    discovery_timeout=args.discovery_timeout,
+    targer_ids={{"ip":"77.136.67.102", "port":5678}}
   )
 elif args.discovery_module == "tailscale":
   discovery = TailscaleDiscovery(

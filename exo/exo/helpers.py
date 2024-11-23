@@ -246,7 +246,7 @@ async def shutdown(signal, loop):
   [task.cancel() for task in server_tasks]
   print(f"Cancelling {len(server_tasks)} outstanding tasks")
   await asyncio.gather(*server_tasks, return_exceptions=True)
-  await server.stop()
+  await server_tasks.stop()
   loop.stop()
 
 
