@@ -24,6 +24,13 @@ Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
 
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
 class ConnectionManager:
     def __init__(self):
         self.active_connections: Dict[str, WebSocket] = {}
@@ -50,17 +57,11 @@ manager = ConnectionManager()
 
 # Hardcoded association between devices and VMs
 device_vm_association = {
-    "1": {"vm_ip": "192.168.1.101", "vm_port": 8000},
+    "1": {"vm_ip": "62.210.195.62", "vm_port": 8000}, #relaxed faraday
     "2": {"vm_ip": "192.168.1.102", "vm_port": 8000},
     "3": {"vm_ip": "192.168.1.103", "vm_port": 8000}
 }
 
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
 
 def format_curl_message(vm_ip: str, vm_port: int, model: str, conv: List[str]) -> str:
     messages = [{"role": "assistant" if i % 2 == 0 else "user", "content": message} for i, message in enumerate(conv)]
@@ -115,20 +116,29 @@ async def handle_request(conv: List[str], model: str, request: Request, db: Sess
     if not db_device.available:
         raise HTTPException(status_code=400, detail="Device is not available")
 
+    # Inform other devices that they are working
     await manager.broadcast("work_start", exclude_device_id=db_device.id, db=db)
 
-    await asyncio.sleep(5)  #remplacer avec actual work
+    # Simulate some work
+    await asyncio.sleep(5)  # Replace this with actual work
 
+    # Inform other devices that the work is done
     await manager.broadcast("work_over", exclude_device_id=db_device.id, db=db)
 
-    # message à la vm asssocié (ca devrait appelé les autres par réaction normalement.)
+    # Send a message to the associated VM
     vm_info = device_vm_association.get(db_device.id)
+    print(db_device.id)
+    print(vm_info)
     if vm_info:
         vm_ip = vm_info["vm_ip"]
         vm_port = vm_info["vm_port"]
         message = format_curl_message(vm_ip, vm_port, model, conv)
         if db_device.id in manager.active_connections:
             await manager.send_message(message, manager.active_connections[db_device.id])
+
+    response = await manager.active_connections[db_device.id].receive_text()
+
+    await manager.send_message(response, manager.active_connections[db_device.id])
 
     return {"message": "Request handled successfully"}
 
@@ -137,13 +147,13 @@ async def read_devices(db: Session = Depends(get_db)):
     devices = db.query(DeviceDB).all()
     return devices
 
-#@app.get("/device/id")
-#async def get_device_id(request: Request, db: Session = Depends(get_db)):
-#    ip = request.client.host
-#    db_device = db.query(DeviceDB).filter(DeviceDB.ip == ip).first()
-#    if not db_device:
-#        raise HTTPException(status_code=404, detail="Device not found")
-#    return {"device_id": db_device.id}
+@app.get("/device/id")
+async def get_device_id(request: Request, db: Session = Depends(get_db)):
+    ip = request.client.host
+    db_device = db.query(DeviceDB).filter(DeviceDB.ip == ip).first()
+    if not db_device:
+        raise HTTPException(status_code=404, detail="Device not found")
+    return {"device_id": db_device.id}
 
 @app.websocket("/ws/{device_id}")
 async def websocket_endpoint(websocket: WebSocket, device_id: str):
