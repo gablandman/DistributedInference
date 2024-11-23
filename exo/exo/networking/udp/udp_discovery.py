@@ -26,15 +26,17 @@ class ListenProtocol(asyncio.DatagramProtocol):
     asyncio.create_task(self.on_message(data, addr))
 
 
-class BroadcastProtocol(asyncio.DatagramProtocol):
-  def __init__(self, message: str, broadcast_port: int):
-    self.message = message
-    self.broadcast_port = broadcast_port
+class UnicastProtocol(asyncio.DatagramProtocol):
+    def __init__(self, message: str, target_ip: str, target_port: int):
+        self.message = message
+        self.target_ip = target_ip
+        self.target_port = target_port
 
-  def connection_made(self, transport):
-    sock = transport.get_extra_info("socket")
-    sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-    transport.sendto(self.message.encode("utf-8"))
+    def connection_made(self, transport):
+        # Send the message directly to the target address
+        transport.sendto(self.message.encode("utf-8"), (self.target_ip, self.target_port))
+        print(f"Sent unicast message to {self.target_ip}:{self.target_port}")
+        transport.close()  # Close the transport after sending
 
 
 class UDPDiscovery(Discovery):
@@ -120,7 +122,7 @@ class UDPDiscovery(Discovery):
             try:
                 # Create a datagram endpoint and send the message to the target
                 transport, _ = await asyncio.get_event_loop().create_datagram_endpoint(
-                    lambda: BroadcastProtocol(message,self.broadcast_port),
+                    lambda: UnicastProtocol(message, target_ip, target_port),
                     local_addr=("0.0.0.0", self.broadcast_port),  # Bind to all interfaces (valid local IP)
                     remote_addr=(target_ip, target_port),  # Target's public IP and port
                     family=socket.AF_INET
@@ -145,7 +147,9 @@ class UDPDiscovery(Discovery):
         async with aiohttp.ClientSession() as session:
             async with session.get('https://api.ipify.org?format=json') as response:
                 if response.status == 200:
+                    
                     data = await response.json()
+                    print(f"Public IP: {data}")
                     return data["ip"]
     except Exception as e:
         if DEBUG_DISCOVERY >= 1: print(f"Error fetching public IP: {e}")
