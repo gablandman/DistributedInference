@@ -8,14 +8,14 @@ from exo.networking.grpc.grpc_server import GRPCServer
 from exo.orchestration.node import Node
 
 root_path = "./exo/networking/manual/test_data/test_config.json"
-
+root_path_single = "./exo/networking/manual/test_data/test_config_single_node.json"
 
 class TestSingleNodeManualDiscovery(unittest.IsolatedAsyncioTestCase):
   async def asyncSetUp(self):
     self.peer1 = mock.AsyncMock()
     self.peer1.connect = mock.AsyncMock()
-    self.discovery1 = ManualDiscovery(root_path, "node1", create_peer_handle=lambda peer_id, address, device_capabilities: self.peer1)
-    _ = self.discovery1.start()
+    self.discovery1 = ManualDiscovery(root_path_single, "node1", create_peer_handle=lambda peer_id, address, device_capabilities: self.peer1)
+    await self.discovery1.start()
 
   async def asyncTearDown(self):
     await self.discovery1.stop()
