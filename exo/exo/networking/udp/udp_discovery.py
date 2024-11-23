@@ -155,6 +155,7 @@ class UDPDiscovery(Discovery):
         return None
 
   async def on_listen_message(self, data, addr):
+    print(f"Received data from {addr}: {data}")
     if not data:
       return
     decoded_data = data.decode("utf-8", errors="ignore")
