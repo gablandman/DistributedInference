@@ -48,7 +48,7 @@ class UDPDiscovery(Discovery):
     broadcast_interval: int = 1,
     discovery_timeout: int = 30,
     device_capabilities: DeviceCapabilities = UNKNOWN_DEVICE_CAPABILITIES,
-    target_ids: List[Dict[str, int]] = {},
+    target_ids: List[Dict[str, str | int]] = [],
   ):
     self.node_id = node_id
     self.node_port = node_port
