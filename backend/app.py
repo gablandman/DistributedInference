@@ -55,9 +55,8 @@ class ConnectionManager:
 
 manager = ConnectionManager()
 
-# Hardcoded association between devices and VMs
 device_vm_association = {
-    "1": {"vm_ip": "62.210.195.62", "vm_port": 8000}, #relaxed faraday
+    "1": {"vm_ip": "62.210.195.62", "vm_port": 8000},
     "2": {"vm_ip": "192.168.1.102", "vm_port": 8000},
     "3": {"vm_ip": "192.168.1.103", "vm_port": 8000}
 }
@@ -116,16 +115,8 @@ async def handle_request(conv: List[str], model: str, request: Request, db: Sess
     if not db_device.available:
         raise HTTPException(status_code=400, detail="Device is not available")
 
-    # Inform other devices that they are working
     await manager.broadcast("work_start", exclude_device_id=db_device.id, db=db)
 
-    # Simulate some work
-    await asyncio.sleep(5)  # Replace this with actual work
-
-    # Inform other devices that the work is done
-    await manager.broadcast("work_over", exclude_device_id=db_device.id, db=db)
-
-    # Send a message to the associated VM
     vm_info = device_vm_association.get(db_device.id)
     print(db_device.id)
     print(vm_info)
@@ -139,6 +130,8 @@ async def handle_request(conv: List[str], model: str, request: Request, db: Sess
     response = await manager.active_connections[db_device.id].receive_text()
 
     await manager.send_message(response, manager.active_connections[db_device.id])
+
+    await manager.broadcast("work_over", exclude_device_id=db_device.id, db=db)    
 
     return {"message": "Request handled successfully"}
 
