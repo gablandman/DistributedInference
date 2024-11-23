@@ -123,7 +123,6 @@ class UDPDiscovery(Discovery):
                 # Create a datagram endpoint and send the message to the target
                 transport, _ = await asyncio.get_event_loop().create_datagram_endpoint(
                     lambda: UnicastProtocol(message, target_ip, target_port),
-                    local_addr=("0.0.0.0", self.broadcast_port),  # Bind to all interfaces (valid local IP)
                     remote_addr=(target_ip, target_port),  # Target's public IP and port
                     family=socket.AF_INET
                 )
@@ -159,6 +158,7 @@ class UDPDiscovery(Discovery):
     if not data:
       return
     decoded_data = data.decode("utf-8", errors="ignore")
+    print(f"Received data from {addr}: {decoded_data}")
 
     # Check if the decoded data starts with a valid JSON character
     if not (decoded_data.strip() and decoded_data.strip()[0] in "{["):

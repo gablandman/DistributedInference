@@ -87,6 +87,9 @@ if DEBUG >= 0:
   for chatgpt_api_endpoint in chatgpt_api_endpoints:
     print(f" - {terminal_link(chatgpt_api_endpoint)}")
 
+target_ids = [{"ip":"84.14.112.188", "port":5678}] #for Malo
+#target_ids = [{"ip":"77.136.67.102", "port":5678}] # for Gary
+
 if args.discovery_module == "udp":
   discovery = UDPDiscovery(
     args.node_id,
@@ -95,7 +98,7 @@ if args.discovery_module == "udp":
     args.broadcast_port,
     lambda peer_id, address, device_capabilities: GRPCPeerHandle(peer_id, address, device_capabilities),
     discovery_timeout=args.discovery_timeout,
-    target_ids= [{"ip":"84.14.112.188", "port":5678}]
+    target_ids= target_ids
   )
 elif args.discovery_module == "tailscale":
   discovery = TailscaleDiscovery(
