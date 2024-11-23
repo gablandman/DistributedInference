@@ -48,7 +48,7 @@ class UDPDiscovery(Discovery):
     broadcast_interval: int = 1,
     discovery_timeout: int = 30,
     device_capabilities: DeviceCapabilities = UNKNOWN_DEVICE_CAPABILITIES,
-    target_ids: Dict[str, Dict[str, int]] = {},
+    target_ids: List[Dict[str, int]] = {},
   ):
     self.node_id = node_id
     self.node_port = node_port
@@ -64,7 +64,7 @@ class UDPDiscovery(Discovery):
     self.cleanup_task = None
     self.target_ids = target_ids
 
-  async def start(self,target_ids):
+  async def start(self):
     self.device_capabilities = device_capabilities()
     self.broadcast_task = asyncio.create_task(self.task_broadcast_presence())
     self.listen_task = asyncio.create_task(self.task_listen_for_peers())
