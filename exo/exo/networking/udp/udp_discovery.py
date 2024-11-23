@@ -10,7 +10,7 @@ from exo.topology.device_capabilities import DeviceCapabilities, device_capabili
 from exo.helpers import DEBUG, DEBUG_DISCOVERY, get_all_ip_addresses
 import aiohttp
 
-DEBUG_DISCOVERY = 2  # Adjust this to control debug verbosity
+DEBUG_DISCOVERY = 4 # Adjust this to control debug verbosity
 
 
 class ListenProtocol(asyncio.DatagramProtocol):
@@ -100,7 +100,7 @@ class UDPDiscovery(Discovery):
 
     while True:
         # Prepare the discovery message
-        for target_id, target_info in self.target_ids.items():
+        for target_id, target_info in enumerate(self.target_ids):
             target_ip = target_info['ip']
             target_port = target_info['port']
 
@@ -121,9 +121,9 @@ class UDPDiscovery(Discovery):
             try:
                 # Create a datagram endpoint and send the message to the target
                 transport, _ = await asyncio.get_event_loop().create_datagram_endpoint(
-                    lambda: BroadcastProtocol(message),
-                    local_addr=(public_ip, self.broadcast_port),  # Use public IP and an ephemeral port
-                    remote_addr=(target_ip, target_port),  # Target's IP and port
+                    lambda: BroadcastProtocol(message,self.broadcast_port),
+                    local_addr=("0.0.0.0", 0),  # Bind to all interfaces (valid local IP)
+                    remote_addr=(target_ip, target_port),  # Target's public IP and port
                     family=socket.AF_INET
                 )
             except Exception as e:
