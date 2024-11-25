@@ -39,6 +39,7 @@ dependencies:
   http: ^1.2.2
   web_socket_channel: ^3.0.1
   audioplayers: ^6.1.0
+  device_info_plus: ^11.1.1
 
 dev_dependencies:
   flutter_test:
