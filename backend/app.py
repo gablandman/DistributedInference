@@ -6,6 +6,7 @@ from sqlalchemy.orm import sessionmaker, Session
 import uuid
 import asyncio
 import json
+import openai
 
 DATABASE_URL = "sqlite:///./test.db"
 
@@ -117,6 +118,18 @@ async def handle_request(conv: List[str], model: str, request: Request, db: Sess
 
     await manager.broadcast("work_start", exclude_device_id=db_device.id, db=db)
 
+    messages = [
+                {"role": "assistant"*(i%2+1) + "user"*(i%2),
+                        "content": c
+                } for i, c in enumerate(conv)
+            ]
+
+    openai.api_key = "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"
+    response = openai.ChatCompletion.create(
+        model="gpt-3.5-turbo",
+        messages=messages
+    )
+
     vm_info = device_vm_association.get(db_device.id)
     print(db_device.id)
     print(vm_info)
@@ -127,12 +140,13 @@ async def handle_request(conv: List[str], model: str, request: Request, db: Sess
         if db_device.id in manager.active_connections:
             await manager.send_message(message, manager.active_connections[db_device.id])
 
-    response = await manager.active_connections[db_device.id].receive_text()
+    # response = await manager.active_connections[db_device.id].receive_text()
 
     await manager.send_message(response, manager.active_connections[db_device.id])
 
-    await manager.broadcast("work_over", exclude_device_id=db_device.id, db=db)    
+    await manager.broadcast("work_over", exclude_device_id=db_device.id, db=db)
 
+    return {"message": response['choices'][0]['message']['content']}
     return {"message": "Request handled successfully"}
 
 @app.get("/devices")
